@@ -1,0 +1,20 @@
+<idea-plugin>
+    <id>no.statnett.parquet.sql</id>
+    <name>Parquet SQL Viewer</name>
+    <vendor email="mukeshr@statnett.no" url="https://gitlab.statnett.no/erpi/dev-tools">Statnett ERP</vendor>
+    <description><![CDATA[
+      High-performance Parquet file viewer using DuckDB SQL.
+      <ul>
+        <li><b>Fast local processing:</b> Powered by the DuckDB engine.</li>
+        <li><b>Full SQL support:</b> Perform JOINs, aggregations, and filters directly on Parquet files.</li>
+        <li><b>Native Integration:</b> Interactive tool window with sortable tables and export capabilities.</li>
+      </ul>
+    ]]></description>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <toolWindow id="ParquetSQL"
+                    anchor="bottom"
+                    factoryClass="no.statnett.parquet.ParquetToolWindowFactory"
+                    icon="AllIcons.Actions.Execute"/>
+    </extensions>
+</idea-plugin>
