@@ -1,7 +1,7 @@
 <idea-plugin>
     <id>no.statnett.parquet.sql</id>
     <name>Parquet SQL Viewer</name>
-    <vendor email="mukeshr@statnett.no" url="https://gitlab.statnett.no/erpi/dev-tools">Statnett ERP</vendor>
+    <vendor email="mukeshr@statnett.no" url="https://gitlab.statnett.no/erpi/dev-tools">MukeshSinghRana</vendor>
     <description><![CDATA[
       High-performance Parquet file viewer using DuckDB SQL.
       <ul>
@@ -11,10 +11,13 @@
       </ul>
     ]]></description>
 
+    <depends>com.intellij.modules.platform</depends>
+
     <extensions defaultExtensionNs="com.intellij">
+        <applicationService serviceImplementation="no.statnett.parquet.ParquetSqlService"/>
         <toolWindow id="ParquetSQL"
                     anchor="bottom"
                     factoryClass="no.statnett.parquet.ParquetToolWindowFactory"
-                    icon="AllIcons.Actions.Execute"/>
+                    icon="AllIcons.Nodes.DataTables"/>
     </extensions>
 </idea-plugin>
