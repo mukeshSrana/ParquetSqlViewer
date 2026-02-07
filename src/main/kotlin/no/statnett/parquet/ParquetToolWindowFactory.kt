@@ -6,6 +6,7 @@ import com.intellij.openapi.progress.ProgressIndicator
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.progress.Task
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.ui.ComboBox
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.JBColor
@@ -23,12 +24,44 @@ import javax.swing.table.TableRowSorter
 
 class ParquetToolWindowFactory : ToolWindowFactory {
 
-    override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val panel = JPanel(BorderLayout())
-        val tableModel = DefaultTableModel()
-        val table = JBTable(tableModel)
+    private val statnettBlue = Color(52, 116, 186)
+    private val tableModel = DefaultTableModel()
+    private val table = JBTable(tableModel)
+    private val queryHistoryModel = DefaultComboBoxModel<String>()
+    private val statusLabel = JLabel("Rows: 0")
 
-        // 1. Table Setup & Sorter
+    override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
+        val mainPanel = JPanel(BorderLayout())
+
+        // 1. Initialize Table Logic
+        val sorter = setupTableAndSorter()
+
+        // 2. Create Components
+        val sqlCombo = createQueryComboBox()
+        val filterField = createFilterField(sorter)
+
+        val browseBtn = createBrowseButton(project, sqlCombo)
+        val runBtn = createRunButton(project, sqlCombo, sorter, filterField)
+        val clearBtn = createClearButton(filterField, sorter)
+
+        // 3. Assemble Layout
+        val topPanel = assembleTopPanel(browseBtn, sqlCombo)
+        val controlBar = assembleControlBar(filterField, clearBtn, runBtn)
+
+        val centerPanel = JPanel(BorderLayout())
+        centerPanel.add(controlBar, BorderLayout.NORTH)
+        centerPanel.add(JBScrollPane(table), BorderLayout.CENTER)
+
+        mainPanel.add(topPanel, BorderLayout.NORTH)
+        mainPanel.add(centerPanel, BorderLayout.CENTER)
+
+        toolWindow.contentManager.addContent(
+            toolWindow.contentManager.factory.createContent(mainPanel, "", false)
+        )
+    }
+
+    // --- Component Creation Functions ---
+    private fun setupTableAndSorter(): TableRowSorter<DefaultTableModel> {
         table.autoResizeMode = JTable.AUTO_RESIZE_OFF
         val sorter = TableRowSorter(tableModel)
         table.rowSorter = sorter
@@ -48,129 +81,128 @@ class ParquetToolWindowFactory : ToolWindowFactory {
                 return c
             }
         })
+        return sorter
+    }
 
-        // 2. Query History Logic (ComboBox)
-        val queryHistoryModel = DefaultComboBoxModel<String>()
-        val sqlCombo = JComboBox(queryHistoryModel)
-        sqlCombo.isEditable = true
-        sqlCombo.font = Font("Monospaced", Font.PLAIN, 13)
+    private fun createQueryComboBox() = ComboBox(queryHistoryModel).apply {
+        isEditable = true
+        font = Font("Monospaced", Font.PLAIN, 13)
         queryHistoryModel.addElement("SELECT * FROM 'path/to/file.parquet' LIMIT 100")
+    }
 
-        // 3. UI Styling - Unified Statnett Blue
-        val statnettBlue = Color(52, 116, 186)
+    private fun createFilterField(sorter: TableRowSorter<DefaultTableModel>) = JTextField(15).apply {
+        addKeyListener(object : KeyAdapter() {
+            override fun keyReleased(e: KeyEvent) = applyFilter(this@apply, sorter)
+        })
+    }
 
-        // All buttons now use statnettBlue
-        val browseBtn = createStyledButton("Select Parquet file or folder", statnettBlue)
-        val runBtn = createStyledButton("Run SQL Query", statnettBlue)
-        val clearFilterBtn = createStyledButton("Clear", statnettBlue)
+    private fun createBrowseButton(project: Project, sqlCombo: ComboBox<String>) =
+        createStyledButton("Select Parquet file or folder", statnettBlue).apply {
+            addActionListener {
+                val descriptor = FileChooserDescriptor(true, true, false, false, false, false).withTitle("Select Parquet")
+                FileChooser.chooseFile(descriptor, project, null)?.let { file ->
+                    val path = if (file.isDirectory) "${file.path}/*.parquet" else file.path
+                    val newQuery = "SELECT * FROM '$path' LIMIT 100"
 
-        val filterField = JTextField(15)
-        val statusLabel = JLabel("Rows: 0")
-        statusLabel.font = statusLabel.font.deriveFont(Font.BOLD)
-
-        // 4. Execution & Selection Logic
-        runBtn.addActionListener {
-            val query = sqlCombo.editor.item.toString()
-            runBtn.isEnabled = false
-
-            ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Executing SQL Query") {
-                override fun run(indicator: ProgressIndicator) {
-                    try {
-                        val (columns, data) = ParquetSqlService().runQuery(query)
-                        SwingUtilities.invokeLater {
-                            tableModel.setDataVector(data.map { it.toTypedArray() }.toTypedArray(), columns.toTypedArray())
-
-                            if (queryHistoryModel.getIndexOf(query) == -1) {
-                                queryHistoryModel.insertElementAt(query, 0)
-                            }
-
-                            filterField.text = ""
-                            applyFilter(filterField, sorter, statusLabel, tableModel)
-                            resizeColumns(table)
-                            runBtn.isEnabled = true
-                        }
-                    } catch (e: Exception) {
-                        SwingUtilities.invokeLater {
-                            JOptionPane.showMessageDialog(panel, "Error: ${e.message}")
-                            runBtn.isEnabled = true
-                        }
-                    }
+                    // FIX: Set both editor text and selected item to keep state in sync
+                    sqlCombo.editor.item = newQuery
+                    sqlCombo.selectedItem = newQuery
                 }
-            })
-        }
-
-        browseBtn.addActionListener {
-            val descriptor = FileChooserDescriptor(true, true, false, false, false, false)
-                .withTitle("Select Parquet")
-            FileChooser.chooseFile(descriptor, project, null)?.let { file ->
-                val path = if (file.isDirectory) "${file.path}/*.parquet" else file.path
-                val newQuery = "SELECT * FROM '$path' LIMIT 100"
-                sqlCombo.editor.item = newQuery
             }
         }
 
-        filterField.addKeyListener(object : KeyAdapter() {
-            override fun keyReleased(e: KeyEvent) = applyFilter(filterField, sorter, statusLabel, tableModel)
-        })
-
-        clearFilterBtn.addActionListener {
-            filterField.text = ""
-            applyFilter(filterField, sorter, statusLabel, tableModel)
+    private fun createRunButton(project: Project, sqlCombo: ComboBox<String>, sorter: TableRowSorter<DefaultTableModel>, filterField: JTextField) =
+        createStyledButton("Run SQL Query", statnettBlue).apply {
+            addActionListener {
+                val query = sqlCombo.editor.item.toString()
+                this.isEnabled = false
+                executeSqlTask(project, query, sorter, filterField, this, sqlCombo)
+            }
         }
 
-        // 5. Layout Construction
-        val topPanel = JPanel(BorderLayout())
-        topPanel.border = MatteBorder(0, 0, 3, 0, statnettBlue)
+    private fun createClearButton(filterField: JTextField, sorter: TableRowSorter<DefaultTableModel>) =
+        createStyledButton("Clear", statnettBlue).apply {
+            addActionListener {
+                filterField.text = ""
+                applyFilter(filterField, sorter)
+            }
+        }
 
-        topPanel.add(browseBtn, BorderLayout.WEST)
-        topPanel.add(sqlCombo, BorderLayout.CENTER)
-
-        val controlBar = JPanel(BorderLayout())
-        controlBar.border = JBUI.Borders.empty(5, 10)
-
-        val leftFlow = JPanel(FlowLayout(FlowLayout.LEFT, 8, 5))
-        leftFlow.add(JLabel("Filter:"))
-        leftFlow.add(filterField)
-        leftFlow.add(clearFilterBtn)
-
-        val rightFlow = JPanel(FlowLayout(FlowLayout.RIGHT, 10, 5))
-        rightFlow.border = MatteBorder(0, 2, 0, 0, JBColor.LIGHT_GRAY)
-        rightFlow.add(runBtn)
-        rightFlow.add(statusLabel)
-
-        controlBar.add(leftFlow, BorderLayout.WEST)
-        controlBar.add(rightFlow, BorderLayout.EAST)
-
-        val centerPanel = JPanel(BorderLayout())
-        centerPanel.add(controlBar, BorderLayout.NORTH)
-        centerPanel.add(JBScrollPane(table), BorderLayout.CENTER)
-
-        panel.add(topPanel, BorderLayout.NORTH)
-        panel.add(centerPanel, BorderLayout.CENTER)
-
-        toolWindow.contentManager.addContent(
-            toolWindow.contentManager.factory.createContent(panel, "", false)
-        )
+    // --- Layout Assembly Functions ---
+    private fun assembleTopPanel(browseBtn: JButton, sqlCombo: ComboBox<String>) = JPanel(BorderLayout()).apply {
+        border = MatteBorder(0, 0, 3, 0, statnettBlue)
+        add(browseBtn, BorderLayout.WEST)
+        add(sqlCombo, BorderLayout.CENTER)
     }
 
-    private fun applyFilter(field: JTextField, sorter: TableRowSorter<DefaultTableModel>, label: JLabel, model: DefaultTableModel) {
+    private fun assembleControlBar(filterField: JTextField, clearBtn: JButton, runBtn: JButton): JPanel {
+        val bar = JPanel(BorderLayout())
+        bar.border = JBUI.Borders.empty(5, 10)
+
+        val left = JPanel(FlowLayout(FlowLayout.LEFT, 8, 5)).apply {
+            add(JLabel("Filter:"))
+            add(filterField)
+            add(clearBtn)
+        }
+
+        val right = JPanel(FlowLayout(FlowLayout.RIGHT, 10, 5)).apply {
+            border = MatteBorder(0, 2, 0, 0, JBColor.LIGHT_GRAY)
+            add(runBtn)
+            statusLabel.font = statusLabel.font.deriveFont(Font.BOLD)
+            add(statusLabel)
+        }
+
+        bar.add(left, BorderLayout.WEST)
+        bar.add(right, BorderLayout.EAST)
+        return bar
+    }
+
+    // --- Logic & Utility Functions ---
+    private fun executeSqlTask(project: Project, query: String, sorter: TableRowSorter<DefaultTableModel>, filterField: JTextField, runBtn: JButton, sqlCombo: ComboBox<String>) {
+        ProgressManager.getInstance().run(object : Task.Backgroundable(project, "Executing SQL Query") {
+            override fun run(indicator: ProgressIndicator) {
+                try {
+                    val (columns, data) = ParquetSqlService.getInstance().runQuery(query)
+                    SwingUtilities.invokeLater {
+                        tableModel.setDataVector(data.map { it.toTypedArray() }.toTypedArray(), columns.toTypedArray())
+
+                        // FIX: Ensure new queries are added and explicitly selected in history
+                        if (queryHistoryModel.getIndexOf(query) == -1) {
+                            queryHistoryModel.insertElementAt(query, 0)
+                        }
+                        sqlCombo.selectedItem = query
+
+                        filterField.text = ""
+                        applyFilter(filterField, sorter)
+                        resizeColumns()
+                        runBtn.isEnabled = true
+                    }
+                } catch (e: Exception) {
+                    SwingUtilities.invokeLater {
+                        JOptionPane.showMessageDialog(null, "Error: ${e.message}")
+                        runBtn.isEnabled = true
+                    }
+                }
+            }
+        })
+    }
+
+    private fun applyFilter(field: JTextField, sorter: TableRowSorter<DefaultTableModel>) {
         val text = field.text
         sorter.rowFilter = if (text.isEmpty()) null else RowFilter.regexFilter("(?i)$text")
-        label.text = if (text.isEmpty()) "Rows: ${model.rowCount}" else "Filtered: ${sorter.viewRowCount} of ${model.rowCount}"
+        statusLabel.text = if (text.isEmpty()) "Rows: ${tableModel.rowCount}" else "Filtered: ${sorter.viewRowCount} of ${tableModel.rowCount}"
     }
 
-    private fun createStyledButton(text: String, color: Color): JButton {
-        return JButton(text).apply {
-            background = color
-            foreground = Color.WHITE
-            isContentAreaFilled = true
-            isOpaque = true
-            putClientProperty("JButton.buttonType", "roundRect")
-            border = BorderFactory.createEmptyBorder(4, 10, 4, 10)
-        }
+    private fun createStyledButton(text: String, color: Color) = JButton(text).apply {
+        background = color
+        foreground = Color.WHITE
+        isContentAreaFilled = true
+        isOpaque = true
+        putClientProperty("JButton.buttonType", "roundRect")
+        border = BorderFactory.createEmptyBorder(4, 10, 4, 10)
     }
 
-    private fun resizeColumns(table: JTable) {
+    private fun resizeColumns() {
         for (column in 0 until table.columnCount) {
             var width = 100
             val headerComp = table.tableHeader.defaultRenderer.getTableCellRendererComponent(table, table.getColumnName(column), false, false, 0, column)
