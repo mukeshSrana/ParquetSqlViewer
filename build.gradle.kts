@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "no.statnett"
-version = "1.1.0"
+version = "1.1.3"
 
 kotlin {
     jvmToolchain(21) // Required for 2025.3
