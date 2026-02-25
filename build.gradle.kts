@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "no.msr"
-version = "1.1.3"
+version = "1.1.4"
 
 kotlin {
     jvmToolchain(21) // Required for 2025.3
@@ -32,7 +32,7 @@ dependencies {
 intellijPlatform {
     buildSearchableOptions = false
     pluginConfiguration {
-        id = "no.msr.parquet.sql"
+        id = "no.statnett.parquet.sql"
         name = "Parquet SQL Viewer"
         ideaVersion {
             sinceBuild = "253"
