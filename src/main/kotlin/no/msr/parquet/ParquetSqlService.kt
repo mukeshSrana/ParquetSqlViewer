@@ -1,4 +1,4 @@
-package no.statnett.parquet
+package no.msr.parquet
 
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.components.Service

@@ -1,4 +1,4 @@
-package no.statnett.parquet
+package no.msr.parquet
 
 import com.intellij.openapi.fileChooser.FileChooser
 import com.intellij.openapi.fileChooser.FileChooserDescriptor
@@ -24,7 +24,7 @@ import javax.swing.table.TableRowSorter
 
 class ParquetToolWindowFactory : ToolWindowFactory {
 
-    private val statnettBlue = Color(52, 116, 186)
+    private val justBlue = Color(52, 116, 186)
     private val tableModel = DefaultTableModel()
     private val table = JBTable(tableModel)
     private val queryHistoryModel = DefaultComboBoxModel<String>()
@@ -70,7 +70,7 @@ class ParquetToolWindowFactory : ToolWindowFactory {
             override fun getTableCellRendererComponent(t: JTable?, value: Any?, isSelected: Boolean, hasFocus: Boolean, row: Int, column: Int): Component {
                 val c = super.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, column)
                 val text = value?.toString() ?: ""
-                horizontalAlignment = if (text.toDoubleOrNull() != null) SwingConstants.RIGHT else SwingConstants.LEFT
+                horizontalAlignment = if (text.toDoubleOrNull() != null) RIGHT else LEFT
 
                 val num = text.toDoubleOrNull()
                 if (num != null && num < 0) {
@@ -97,7 +97,7 @@ class ParquetToolWindowFactory : ToolWindowFactory {
     }
 
     private fun createBrowseButton(project: Project, sqlCombo: ComboBox<String>) =
-        createStyledButton("Select Parquet file or folder", statnettBlue).apply {
+        createStyledButton("Select Parquet file or folder", justBlue).apply {
             addActionListener {
                 val descriptor = FileChooserDescriptor(true, true, false, false, false, false).withTitle("Select Parquet")
                 FileChooser.chooseFile(descriptor, project, null)?.let { file ->
@@ -112,7 +112,7 @@ class ParquetToolWindowFactory : ToolWindowFactory {
         }
 
     private fun createRunButton(project: Project, sqlCombo: ComboBox<String>, sorter: TableRowSorter<DefaultTableModel>, filterField: JTextField) =
-        createStyledButton("Run SQL Query", statnettBlue).apply {
+        createStyledButton("Run SQL Query", justBlue).apply {
             addActionListener {
                 val query = sqlCombo.editor.item.toString()
                 this.isEnabled = false
@@ -121,7 +121,7 @@ class ParquetToolWindowFactory : ToolWindowFactory {
         }
 
     private fun createClearButton(filterField: JTextField, sorter: TableRowSorter<DefaultTableModel>) =
-        createStyledButton("Clear", statnettBlue).apply {
+        createStyledButton("Clear", justBlue).apply {
             addActionListener {
                 filterField.text = ""
                 applyFilter(filterField, sorter)
@@ -130,7 +130,7 @@ class ParquetToolWindowFactory : ToolWindowFactory {
 
     // --- Layout Assembly Functions ---
     private fun assembleTopPanel(browseBtn: JButton, sqlCombo: ComboBox<String>) = JPanel(BorderLayout()).apply {
-        border = MatteBorder(0, 0, 3, 0, statnettBlue)
+        border = MatteBorder(0, 0, 3, 0, justBlue)
         add(browseBtn, BorderLayout.WEST)
         add(sqlCombo, BorderLayout.CENTER)
     }

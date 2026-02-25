@@ -119,7 +119,7 @@ If this JAR is present, the DuckDB driver is bundled correctly and the plugin sh
 ---
 
 ## 🤝 Contributing
-For Statnett internal developers:
+For developers:
 
 Clone the repo.
 

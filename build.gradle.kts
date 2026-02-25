@@ -6,7 +6,7 @@ plugins {
     id("org.jetbrains.intellij.platform") version "2.10.4"
 }
 
-group = "no.statnett"
+group = "no.msr"
 version = "1.1.3"
 
 kotlin {
@@ -32,7 +32,7 @@ dependencies {
 intellijPlatform {
     buildSearchableOptions = false
     pluginConfiguration {
-        id = "no.statnett.parquet.sql"
+        id = "no.msr.parquet.sql"
         name = "Parquet SQL Viewer"
         ideaVersion {
             sinceBuild = "253"
