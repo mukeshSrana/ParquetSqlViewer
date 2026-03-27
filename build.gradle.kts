@@ -2,12 +2,12 @@ import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "2.1.0"
+    id("org.jetbrains.kotlin.jvm") version "2.3.0"
     id("org.jetbrains.intellij.platform") version "2.10.4"
 }
 
 group = "no.msr"
-version = "1.1.0"
+version = "1.1.1"
 
 kotlin {
     jvmToolchain(21) // Required for 2025.3
@@ -20,7 +20,7 @@ repositories {
 
 dependencies {
     intellijPlatform {
-        intellijIdea("2025.3.2")
+        intellijIdea("2026.1")
         bundledPlugin("com.intellij.java")
         testFramework(TestFrameworkType.Platform)
     }
@@ -35,8 +35,8 @@ intellijPlatform {
         id = "no.msr.parquet.sql"
         name = "Parquet SQL Viewer"
         ideaVersion {
-            sinceBuild = "253"
-            untilBuild = "253.*"
+            sinceBuild = "233"
+            untilBuild = null
         }
     }
 }
